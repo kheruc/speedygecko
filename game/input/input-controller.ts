@@ -1,11 +1,10 @@
-import { Direction, OPPOSITE_DIRECTIONS } from "../types";
+import { Direction } from "../types";
 
 /**
  * InputController - Abstraction layer for game input
  *
  * Handles both keyboard and touch/swipe input, providing a unified
- * interface for the game logic. Prevents 180-degree turns to avoid
- * instant self-collision at high speeds.
+ * interface for the game logic.
  */
 export class InputController {
   private currentDirection: Direction;
@@ -82,13 +81,9 @@ export class InputController {
   }
 
   /**
-   * Set the next direction, preventing 180-degree turns
+   * Set the next direction
    */
   setDirection(direction: Direction): void {
-    // Prevent 180-degree turns (instant self-collision)
-    if (OPPOSITE_DIRECTIONS[this.currentDirection] === direction) {
-      return;
-    }
     this.nextDirection = direction;
   }
 
@@ -111,10 +106,7 @@ export class InputController {
    * Called when the gecko reaches a grid position and can turn
    */
   applyNextDirection(): void {
-    // Double-check for 180-degree turn prevention
-    if (OPPOSITE_DIRECTIONS[this.currentDirection] !== this.nextDirection) {
-      this.currentDirection = this.nextDirection;
-    }
+    this.currentDirection = this.nextDirection;
   }
 
   /**

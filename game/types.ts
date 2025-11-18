@@ -21,11 +21,8 @@ export enum GameState {
 export enum TileType {
   EMPTY = 0,
   WALL = 1,
-  SPEED_PAD = 2,
-  MUD = 3,
-  ICE = 4,
-  LAVA = 5,
-  CHEMICAL = 6,
+  LAVA = 2,
+  CHEMICAL = 3,
 }
 
 /** Position on the grid */
@@ -66,11 +63,8 @@ export const GAME_CONSTANTS = {
   LEG_ANIMATION_BASE_DURATION: 400, // milliseconds at base speed
   LEG_ANIMATION_MIN_DURATION: 100, // milliseconds at max speed
 
-  // Tile effects
-  SPEED_PAD_BOOST: 200, // temporary speed boost
-  SPEED_PAD_DURATION: 500, // milliseconds
-  MUD_SLOWDOWN: 0.5, // multiplier
-  ICE_FRICTION: 0.3, // low friction on ice
+  // Death tiles
+  NUM_DEATH_TILES: 6, // total number of death tiles (lava + chemical)
 
   // Colors
   COLORS: {
@@ -79,9 +73,6 @@ export const GAME_CONSTANTS = {
     FOOD: 0xfbbf24, // amber
     WALL: 0x374151, // gray
     FLOOR: 0x1f2937, // dark gray
-    SPEED_PAD: 0xef4444, // red
-    MUD: 0x92400e, // brown
-    ICE: 0x93c5fd, // light blue
     LAVA: 0xff4500, // orange-red
     CHEMICAL: 0x00ff00, // bright green
   },

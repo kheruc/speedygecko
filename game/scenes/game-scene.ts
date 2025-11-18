@@ -56,10 +56,8 @@ export class GameScene extends Phaser.Scene {
   private speedText!: Phaser.GameObjects.Text;
   private gameOverContainer!: Phaser.GameObjects.Container;
 
-  // Speed effects
-  private speedBoostActive: boolean = false;
-  private speedBoostEndTime: number = 0;
-  private currentTileEffect: TileType = TileType.EMPTY;
+  // Death tiles
+  private deathTilePositions: GridPosition[] = [];
 
   constructor() {
     super({ key: "GameScene" });
@@ -92,8 +90,6 @@ export class GameScene extends Phaser.Scene {
     this.geckoGridPos = { x: 5, y: 5 };
     this.targetGridPos = { x: 5, y: 5 };
     this.isMoving = false;
-    this.speedBoostActive = false;
-    this.currentTileEffect = TileType.EMPTY;
     this.foodVisible = true;
     this.particleEffects = [];
   }
@@ -119,11 +115,8 @@ export class GameScene extends Phaser.Scene {
       this.grid[y][GRID_WIDTH - 1] = TileType.WALL;
     }
 
-    // Add some internal walls to create maze-like obstacles
-    this.addInternalWalls();
-
-    // Add special tiles
-    this.addSpecialTiles();
+    // Add random death tiles
+    this.placeRandomDeathTiles();
 
     // Create visual representation
     this.tileGraphics = [];
@@ -136,15 +129,6 @@ export class GameScene extends Phaser.Scene {
         switch (tileType) {
           case TileType.WALL:
             color = COLORS.WALL;
-            break;
-          case TileType.SPEED_PAD:
-            color = COLORS.SPEED_PAD;
-            break;
-          case TileType.MUD:
-            color = COLORS.MUD;
-            break;
-          case TileType.ICE:
-            color = COLORS.ICE;
             break;
           case TileType.LAVA:
             color = COLORS.LAVA;
@@ -167,100 +151,70 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Add internal walls to create obstacles
+   * Place random death tiles (lava and chemical puddles) on the grid
    */
-  private addInternalWalls(): void {
-    // Create some L-shaped and rectangular obstacles
-    const wallPatterns = [
-      // Horizontal walls
-      { startX: 5, startY: 5, length: 6, horizontal: true },
-      { startX: 14, startY: 5, length: 6, horizontal: true },
-      { startX: 8, startY: 10, length: 9, horizontal: true },
-      { startX: 5, startY: 14, length: 6, horizontal: true },
-      { startX: 14, startY: 14, length: 6, horizontal: true },
-      // Vertical walls
-      { startX: 10, startY: 3, length: 4, horizontal: false },
-      { startX: 14, startY: 3, length: 4, horizontal: false },
-      { startX: 10, startY: 12, length: 4, horizontal: false },
-      { startX: 14, startY: 12, length: 4, horizontal: false },
-    ];
+  private placeRandomDeathTiles(): void {
+    const { GRID_WIDTH, GRID_HEIGHT, NUM_DEATH_TILES } = GAME_CONSTANTS;
 
-    for (const pattern of wallPatterns) {
-      for (let i = 0; i < pattern.length; i++) {
-        const x = pattern.horizontal ? pattern.startX + i : pattern.startX;
-        const y = pattern.horizontal ? pattern.startY : pattern.startY + i;
-        if (this.isValidGridPosition(x, y)) {
-          this.grid[y][x] = TileType.WALL;
-        }
+    // Clear existing death tiles from grid
+    for (const pos of this.deathTilePositions) {
+      if (this.grid[pos.y] && this.grid[pos.y][pos.x]) {
+        this.grid[pos.y][pos.x] = TileType.EMPTY;
       }
+    }
+
+    this.deathTilePositions = [];
+
+    let placed = 0;
+    let attempts = 0;
+    const maxAttempts = 200;
+
+    while (placed < NUM_DEATH_TILES && attempts < maxAttempts) {
+      const x = Phaser.Math.Between(2, GRID_WIDTH - 3);
+      const y = Phaser.Math.Between(2, GRID_HEIGHT - 3);
+
+      // Check if position is valid (empty, not too close to start position)
+      const distanceFromStart = Math.abs(x - 5) + Math.abs(y - 5);
+      if (
+        this.grid[y][x] === TileType.EMPTY &&
+        distanceFromStart > 3 && // At least 3 tiles away from start
+        !(x === this.foodGridPos.x && y === this.foodGridPos.y) // Not on food
+      ) {
+        // Alternate between lava and chemical
+        const tileType = placed % 2 === 0 ? TileType.LAVA : TileType.CHEMICAL;
+        this.grid[y][x] = tileType;
+        this.deathTilePositions.push({ x, y });
+        placed++;
+      }
+      attempts++;
     }
   }
 
   /**
-   * Add special tiles (speed pads, mud, ice, lava, chemical)
+   * Update the visual tiles to match the grid state
    */
-  private addSpecialTiles(): void {
-    // Speed pads - high risk/reward
-    const speedPadPositions = [
-      { x: 3, y: 3 },
-      { x: 21, y: 3 },
-      { x: 3, y: 15 },
-      { x: 21, y: 15 },
-      { x: 12, y: 9 },
-    ];
+  private updateTileVisuals(): void {
+    const { COLORS } = GAME_CONSTANTS;
 
-    // Mud tiles - slow down
-    const mudPositions = [
-      { x: 7, y: 7 },
-      { x: 8, y: 7 },
-      { x: 17, y: 7 },
-      { x: 18, y: 7 },
-      { x: 7, y: 12 },
-      { x: 8, y: 12 },
-      { x: 17, y: 12 },
-      { x: 18, y: 12 },
-    ];
+    for (let y = 0; y < this.grid.length; y++) {
+      for (let x = 0; x < this.grid[y].length; x++) {
+        const tileType = this.grid[y][x];
+        let color: number = COLORS.FLOOR;
 
-    // Ice tiles - low friction
-    const icePositions = [
-      { x: 11, y: 3 },
-      { x: 12, y: 3 },
-      { x: 13, y: 3 },
-      { x: 11, y: 16 },
-      { x: 12, y: 16 },
-      { x: 13, y: 16 },
-    ];
+        switch (tileType) {
+          case TileType.WALL:
+            color = COLORS.WALL;
+            break;
+          case TileType.LAVA:
+            color = COLORS.LAVA;
+            break;
+          case TileType.CHEMICAL:
+            color = COLORS.CHEMICAL;
+            break;
+        }
 
-    // Lava tiles - instant death
-    const lavaPositions = [
-      { x: 6, y: 9 },
-      { x: 7, y: 9 },
-      { x: 18, y: 9 },
-      { x: 19, y: 9 },
-    ];
-
-    // Chemical puddles - instant death
-    const chemicalPositions = [
-      { x: 12, y: 5 },
-      { x: 13, y: 5 },
-      { x: 12, y: 13 },
-      { x: 13, y: 13 },
-    ];
-
-    for (const pos of speedPadPositions) {
-      this.grid[pos.y][pos.x] = TileType.SPEED_PAD;
-    }
-    for (const pos of mudPositions) {
-      this.grid[pos.y][pos.x] = TileType.MUD;
-    }
-    for (const pos of icePositions) {
-      this.grid[pos.y][pos.x] = TileType.ICE;
-    }
-    for (const pos of lavaPositions) {
-      this.grid[pos.y][pos.x] = TileType.LAVA;
-    }
-    for (const pos of chemicalPositions) {
-      this.grid[pos.y][pos.x] = TileType.CHEMICAL;
+        this.tileGraphics[y][x].setFillStyle(color);
+      }
     }
   }
 
@@ -319,30 +273,34 @@ export class GameScene extends Phaser.Scene {
 
   /**
    * Start continuous leg animation based on speed
+   * Uses position offset instead of angle to work correctly in all directions
    */
   private startLegAnimation(): void {
     const duration = this.calculateLegAnimationDuration();
+    const { TILE_SIZE } = GAME_CONSTANTS;
 
-    // Kill existing animation if any
-    if (this.legAnimationTween) {
-      this.legAnimationTween.stop();
-    }
+    // Kill existing animations if any
+    this.tweens.killTweensOf(this.geckoLegs);
 
-    // Animate legs with alternating pattern
-    this.legAnimationTween = this.tweens.add({
-      targets: [this.geckoLegs[0], this.geckoLegs[3]], // front-left and back-right
-      angle: "+=20",
+    // Animate legs with alternating pattern using y-offset (works in all rotations)
+    // Front-left and back-right pair
+    this.tweens.add({
+      targets: [this.geckoLegs[0], this.geckoLegs[3]],
+      y: `+=${TILE_SIZE * 0.05}`,
       duration: duration / 2,
       yoyo: true,
       repeat: -1,
+      ease: "Sine.easeInOut",
     });
 
+    // Front-right and back-left pair (offset timing)
     this.tweens.add({
-      targets: [this.geckoLegs[1], this.geckoLegs[2]], // front-right and back-left
-      angle: "-=20",
+      targets: [this.geckoLegs[1], this.geckoLegs[2]],
+      y: `-=${TILE_SIZE * 0.05}`,
       duration: duration / 2,
       yoyo: true,
       repeat: -1,
+      ease: "Sine.easeInOut",
     });
   }
 
@@ -388,6 +346,7 @@ export class GameScene extends Phaser.Scene {
     const { TILE_SIZE, COLORS } = GAME_CONSTANTS;
 
     this.food = this.add.container(0, 0);
+    this.food.setDepth(-1); // Behind the gecko
 
     // Main food body (glowing orb)
     const foodBody = this.add.circle(0, 0, TILE_SIZE * 0.3, COLORS.FOOD);
@@ -600,11 +559,6 @@ export class GameScene extends Phaser.Scene {
     // Clean up old particle effects
     this.updateParticleEffects(time);
 
-    // Check for speed boost expiration
-    if (this.speedBoostActive && time > this.speedBoostEndTime) {
-      this.speedBoostActive = false;
-    }
-
     // Handle movement
     if (!this.isMoving) {
       this.startNextMove();
@@ -702,25 +656,7 @@ export class GameScene extends Phaser.Scene {
   private continueMove(delta: number): void {
     const { TILE_SIZE } = GAME_CONSTANTS;
 
-    // Calculate effective speed
-    let effectiveSpeed = this.currentSpeed;
-
-    // Apply speed boost if active
-    if (this.speedBoostActive) {
-      effectiveSpeed += GAME_CONSTANTS.SPEED_PAD_BOOST;
-    }
-
-    // Apply tile effects
-    switch (this.currentTileEffect) {
-      case TileType.MUD:
-        effectiveSpeed *= GAME_CONSTANTS.MUD_SLOWDOWN;
-        break;
-      case TileType.ICE:
-        // Ice doesn't slow down, but we could add sliding mechanics later
-        break;
-    }
-
-    const moveDistance = (effectiveSpeed * delta) / 1000;
+    const moveDistance = (this.currentSpeed * delta) / 1000;
 
     // Calculate current world position
     const currentWorldX = this.geckoContainer.x;
@@ -795,22 +731,11 @@ export class GameScene extends Phaser.Scene {
    */
   private checkTileEffects(): void {
     const tileType = this.grid[this.geckoGridPos.y][this.geckoGridPos.x];
-    this.currentTileEffect = tileType;
 
     // Check for death tiles
     if (tileType === TileType.LAVA || tileType === TileType.CHEMICAL) {
       this.showGameOver();
       return;
-    }
-
-    // Speed pad effect
-    if (tileType === TileType.SPEED_PAD && !this.speedBoostActive) {
-      // Activate speed boost
-      this.speedBoostActive = true;
-      this.speedBoostEndTime = this.time.now + GAME_CONSTANTS.SPEED_PAD_DURATION;
-
-      // Visual feedback
-      this.cameras.main.flash(100, 255, 100, 100, true);
     }
   }
 
@@ -855,8 +780,10 @@ export class GameScene extends Phaser.Scene {
     // Camera shake for feedback
     this.cameras.main.shake(100, 0.005);
 
-    // Spawn new food after a short delay
+    // Regenerate death tiles and spawn new food after a short delay
     this.time.delayedCall(200, () => {
+      this.placeRandomDeathTiles();
+      this.updateTileVisuals();
       this.spawnFood();
     });
   }
