@@ -226,6 +226,7 @@ export class GameScene extends Phaser.Scene {
     const { TILE_SIZE, COLORS } = GAME_CONSTANTS;
 
     this.geckoContainer = this.add.container(0, 0);
+    this.geckoContainer.setDepth(2); // Above food and tiles
 
     // Body (oval)
     const body = this.add.ellipse(0, 0, TILE_SIZE * 0.7, TILE_SIZE * 0.9, COLORS.GECKO_BODY);
@@ -273,20 +274,19 @@ export class GameScene extends Phaser.Scene {
 
   /**
    * Start continuous leg animation based on speed
-   * Uses position offset instead of angle to work correctly in all directions
+   * Uses scale animation to work correctly in all directions
    */
   private startLegAnimation(): void {
     const duration = this.calculateLegAnimationDuration();
-    const { TILE_SIZE } = GAME_CONSTANTS;
 
     // Kill existing animations if any
     this.tweens.killTweensOf(this.geckoLegs);
 
-    // Animate legs with alternating pattern using y-offset (works in all rotations)
+    // Animate legs with alternating pattern using scaleY (rotation-independent)
     // Front-left and back-right pair
     this.tweens.add({
       targets: [this.geckoLegs[0], this.geckoLegs[3]],
-      y: `+=${TILE_SIZE * 0.05}`,
+      scaleY: 1.15,
       duration: duration / 2,
       yoyo: true,
       repeat: -1,
@@ -296,11 +296,12 @@ export class GameScene extends Phaser.Scene {
     // Front-right and back-left pair (offset timing)
     this.tweens.add({
       targets: [this.geckoLegs[1], this.geckoLegs[2]],
-      y: `-=${TILE_SIZE * 0.05}`,
+      scaleY: 1.15,
       duration: duration / 2,
       yoyo: true,
       repeat: -1,
       ease: "Sine.easeInOut",
+      delay: duration / 4, // Offset by quarter cycle for alternating effect
     });
   }
 
@@ -346,7 +347,7 @@ export class GameScene extends Phaser.Scene {
     const { TILE_SIZE, COLORS } = GAME_CONSTANTS;
 
     this.food = this.add.container(0, 0);
-    this.food.setDepth(-1); // Behind the gecko
+    this.food.setDepth(1); // Above tiles, below gecko
 
     // Main food body (glowing orb)
     const foodBody = this.add.circle(0, 0, TILE_SIZE * 0.3, COLORS.FOOD);

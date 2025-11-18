@@ -41,12 +41,40 @@ export function GameCanvas() {
   }, []);
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-900">
+    <div className="flex items-center justify-center min-h-screen bg-gray-900 p-4">
       <div
         ref={gameContainerRef}
         id="game-container"
-        className="rounded-lg overflow-hidden shadow-2xl border-2 border-gray-700"
+        className="game-canvas-wrapper"
+        style={{
+          maxWidth: '100vw',
+          maxHeight: 'calc(100vh - 2rem)',
+          aspectRatio: '800 / 608',
+        }}
       />
+      <style jsx>{`
+        .game-canvas-wrapper {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .game-canvas-wrapper canvas {
+          width: 100% !important;
+          height: 100% !important;
+          max-width: 800px;
+          max-height: 608px;
+          object-fit: contain;
+          border-radius: 0.5rem;
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+          border: 2px solid #374151;
+        }
+        @media (max-width: 640px) {
+          .game-canvas-wrapper canvas {
+            border-radius: 0;
+            border: none;
+          }
+        }
+      `}</style>
     </div>
   );
 }

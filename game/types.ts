@@ -55,7 +55,7 @@ export const GAME_CONSTANTS = {
   },
 
   // Gecko properties
-  INITIAL_SPEED: 150, // pixels per second
+  INITIAL_SPEED: 225, // pixels per second (increased for better pacing)
   SPEED_INCREMENT: 25, // speed increase per food eaten
   MAX_SPEED: 600,
 
