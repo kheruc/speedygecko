@@ -5,21 +5,21 @@ import {
   GameState,
   TileType,
   GridPosition,
-  TrailSegment,
+  ParticleEffect,
   GAME_CONSTANTS,
   DIRECTION_VECTORS,
+  PERPENDICULAR_DIRECTIONS,
 } from "../types";
 
 /**
  * GameScene - Main game logic for SpeedyGecko
  *
  * Handles:
- * - Grid-based movement with smooth interpolation
- * - Gecko rendering and animation
- * - Food spawning and collection
- * - Trail management (fading trail that causes death on collision)
+ * - Grid-based movement with smooth interpolation and wall sliding
+ * - Gecko rendering with animated legs
+ * - Food spawning and collection with eating animation
  * - Speed increase mechanics
- * - Special tiles (speed pads, mud, ice)
+ * - Special tiles (speed pads, mud, ice) and death tiles (lava, chemical)
  * - Score tracking and game over flow
  */
 export class GameScene extends Phaser.Scene {
@@ -33,16 +33,19 @@ export class GameScene extends Phaser.Scene {
 
   // Gecko (player)
   private geckoContainer!: Phaser.GameObjects.Container;
+  private geckoLegs!: Phaser.GameObjects.Rectangle[];
+  private legAnimationTween?: Phaser.Tweens.Tween;
   private geckoGridPos: GridPosition = { x: 5, y: 5 };
   private targetGridPos: GridPosition = { x: 5, y: 5 };
   private isMoving: boolean = false;
 
-  // Trail
-  private trail: TrailSegment[] = [];
-
   // Food
   private food!: Phaser.GameObjects.Container;
   private foodGridPos: GridPosition = { x: 10, y: 10 };
+  private foodVisible: boolean = true;
+
+  // Effects
+  private particleEffects: ParticleEffect[] = [];
 
   // Grid/Map
   private grid: TileType[][] = [];
@@ -91,7 +94,8 @@ export class GameScene extends Phaser.Scene {
     this.isMoving = false;
     this.speedBoostActive = false;
     this.currentTileEffect = TileType.EMPTY;
-    this.trail = [];
+    this.foodVisible = true;
+    this.particleEffects = [];
   }
 
   /**
@@ -142,6 +146,12 @@ export class GameScene extends Phaser.Scene {
           case TileType.ICE:
             color = COLORS.ICE;
             break;
+          case TileType.LAVA:
+            color = COLORS.LAVA;
+            break;
+          case TileType.CHEMICAL:
+            color = COLORS.CHEMICAL;
+            break;
         }
 
         const tile = this.add.rectangle(
@@ -187,7 +197,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Add special tiles (speed pads, mud, ice)
+   * Add special tiles (speed pads, mud, ice, lava, chemical)
    */
   private addSpecialTiles(): void {
     // Speed pads - high risk/reward
@@ -221,6 +231,22 @@ export class GameScene extends Phaser.Scene {
       { x: 13, y: 16 },
     ];
 
+    // Lava tiles - instant death
+    const lavaPositions = [
+      { x: 6, y: 9 },
+      { x: 7, y: 9 },
+      { x: 18, y: 9 },
+      { x: 19, y: 9 },
+    ];
+
+    // Chemical puddles - instant death
+    const chemicalPositions = [
+      { x: 12, y: 5 },
+      { x: 13, y: 5 },
+      { x: 12, y: 13 },
+      { x: 13, y: 13 },
+    ];
+
     for (const pos of speedPadPositions) {
       this.grid[pos.y][pos.x] = TileType.SPEED_PAD;
     }
@@ -229,6 +255,12 @@ export class GameScene extends Phaser.Scene {
     }
     for (const pos of icePositions) {
       this.grid[pos.y][pos.x] = TileType.ICE;
+    }
+    for (const pos of lavaPositions) {
+      this.grid[pos.y][pos.x] = TileType.LAVA;
+    }
+    for (const pos of chemicalPositions) {
+      this.grid[pos.y][pos.x] = TileType.CHEMICAL;
     }
   }
 
@@ -251,7 +283,7 @@ export class GameScene extends Phaser.Scene {
     const leftEye = this.add.circle(-4, -TILE_SIZE * 0.38, 3, COLORS.GECKO_ACCENT);
     const rightEye = this.add.circle(4, -TILE_SIZE * 0.38, 3, COLORS.GECKO_ACCENT);
 
-    // Legs (4 small rectangles)
+    // Legs (4 small rectangles) - store for animation
     const legWidth = 6;
     const legHeight = 12;
     const frontLeftLeg = this.add.rectangle(-TILE_SIZE * 0.35, -TILE_SIZE * 0.15, legWidth, legHeight, COLORS.GECKO_BODY);
@@ -262,6 +294,9 @@ export class GameScene extends Phaser.Scene {
     backLeftLeg.setAngle(30);
     const backRightLeg = this.add.rectangle(TILE_SIZE * 0.35, TILE_SIZE * 0.15, legWidth, legHeight, COLORS.GECKO_BODY);
     backRightLeg.setAngle(-30);
+
+    // Store legs for animation
+    this.geckoLegs = [frontLeftLeg, frontRightLeg, backLeftLeg, backRightLeg];
 
     // Tail
     const tail = this.add.ellipse(0, TILE_SIZE * 0.45, TILE_SIZE * 0.2, TILE_SIZE * 0.4, COLORS.GECKO_BODY);
@@ -279,6 +314,62 @@ export class GameScene extends Phaser.Scene {
     ]);
 
     this.updateGeckoPosition();
+    this.startLegAnimation();
+  }
+
+  /**
+   * Start continuous leg animation based on speed
+   */
+  private startLegAnimation(): void {
+    const duration = this.calculateLegAnimationDuration();
+
+    // Kill existing animation if any
+    if (this.legAnimationTween) {
+      this.legAnimationTween.stop();
+    }
+
+    // Animate legs with alternating pattern
+    this.legAnimationTween = this.tweens.add({
+      targets: [this.geckoLegs[0], this.geckoLegs[3]], // front-left and back-right
+      angle: "+=20",
+      duration: duration / 2,
+      yoyo: true,
+      repeat: -1,
+    });
+
+    this.tweens.add({
+      targets: [this.geckoLegs[1], this.geckoLegs[2]], // front-right and back-left
+      angle: "-=20",
+      duration: duration / 2,
+      yoyo: true,
+      repeat: -1,
+    });
+  }
+
+  /**
+   * Calculate leg animation duration based on current speed
+   */
+  private calculateLegAnimationDuration(): number {
+    const { INITIAL_SPEED, MAX_SPEED, LEG_ANIMATION_BASE_DURATION, LEG_ANIMATION_MIN_DURATION } =
+      GAME_CONSTANTS;
+
+    // Linear interpolation between base and min duration
+    const speedRatio = (this.currentSpeed - INITIAL_SPEED) / (MAX_SPEED - INITIAL_SPEED);
+    const duration =
+      LEG_ANIMATION_BASE_DURATION -
+      speedRatio * (LEG_ANIMATION_BASE_DURATION - LEG_ANIMATION_MIN_DURATION);
+
+    return Math.max(duration, LEG_ANIMATION_MIN_DURATION);
+  }
+
+  /**
+   * Update leg animation speed based on current speed
+   */
+  private updateLegAnimationSpeed(): void {
+    const newDuration = this.calculateLegAnimationDuration();
+
+    // Restart animation with new duration
+    this.startLegAnimation();
   }
 
   /**
@@ -331,31 +422,28 @@ export class GameScene extends Phaser.Scene {
       const x = Phaser.Math.Between(2, GRID_WIDTH - 3);
       const y = Phaser.Math.Between(2, GRID_HEIGHT - 3);
 
-      // Check if position is valid (not wall, not gecko, not trail)
+      // Check if position is valid (empty tile, not gecko, not death tile)
+      const tileType = this.grid[y][x];
       if (
-        this.grid[y][x] === TileType.EMPTY &&
-        !(x === this.geckoGridPos.x && y === this.geckoGridPos.y) &&
-        !this.isTrailAtPosition(x, y)
+        tileType === TileType.EMPTY &&
+        !(x === this.geckoGridPos.x && y === this.geckoGridPos.y)
       ) {
         this.foodGridPos = { x, y };
         this.food.x = x * TILE_SIZE + TILE_SIZE / 2;
         this.food.y = y * TILE_SIZE + TILE_SIZE / 2;
+        this.food.setVisible(true);
+        this.foodVisible = true;
         return;
       }
       attempts++;
     }
 
-    // Fallback: just place it somewhere
+    // Fallback: just place it somewhere safe
     this.foodGridPos = { x: 12, y: 9 };
     this.food.x = this.foodGridPos.x * TILE_SIZE + TILE_SIZE / 2;
     this.food.y = this.foodGridPos.y * TILE_SIZE + TILE_SIZE / 2;
-  }
-
-  /**
-   * Check if there's trail at a given position
-   */
-  private isTrailAtPosition(x: number, y: number): boolean {
-    return this.trail.some((segment) => segment.x === x && segment.y === y);
+    this.food.setVisible(true);
+    this.foodVisible = true;
   }
 
   /**
@@ -471,9 +559,11 @@ export class GameScene extends Phaser.Scene {
    * Restart the game
    */
   private restartGame(): void {
-    // Clear trail graphics
-    for (const segment of this.trail) {
-      segment.graphic.destroy();
+    // Clear particle effects
+    for (const effect of this.particleEffects) {
+      for (const graphic of effect.graphics) {
+        graphic.destroy();
+      }
     }
 
     this.resetGameState();
@@ -492,6 +582,9 @@ export class GameScene extends Phaser.Scene {
     this.scoreText.setText("Score: 0");
     this.speedText.setText(`Speed: ${this.currentSpeed}`);
 
+    // Restart leg animation at initial speed
+    this.updateLegAnimationSpeed();
+
     // Hide game over
     this.gameOverContainer.setVisible(false);
   }
@@ -504,8 +597,8 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    // Update trail (remove expired segments)
-    this.updateTrail(time);
+    // Clean up old particle effects
+    this.updateParticleEffects(time);
 
     // Check for speed boost expiration
     if (this.speedBoostActive && time > this.speedBoostEndTime) {
@@ -521,26 +614,79 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
+   * Update and clean up particle effects
+   */
+  private updateParticleEffects(currentTime: number): void {
+    const expiredEffects: ParticleEffect[] = [];
+
+    for (const effect of this.particleEffects) {
+      const age = currentTime - effect.createdAt;
+
+      if (age >= 500) {
+        // 500ms lifetime for food particles
+        expiredEffects.push(effect);
+      } else {
+        // Fade out
+        const fadeRatio = 1 - age / 500;
+        for (const graphic of effect.graphics) {
+          graphic.setAlpha(fadeRatio);
+        }
+      }
+    }
+
+    // Remove expired effects
+    for (const effect of expiredEffects) {
+      for (const graphic of effect.graphics) {
+        graphic.destroy();
+      }
+      const index = this.particleEffects.indexOf(effect);
+      if (index > -1) {
+        this.particleEffects.splice(index, 1);
+      }
+    }
+  }
+
+  /**
    * Start the next movement towards target grid position
+   * Implements wall sliding - auto-turns 90 degrees when hitting a wall
    */
   private startNextMove(): void {
     // Apply any queued direction change
     this.inputController.applyNextDirection();
 
-    const direction = this.inputController.getCurrentDirection();
-    const vector = DIRECTION_VECTORS[direction];
+    let direction = this.inputController.getCurrentDirection();
+    let vector = DIRECTION_VECTORS[direction];
 
-    const nextX = this.geckoGridPos.x + vector.x;
-    const nextY = this.geckoGridPos.y + vector.y;
+    let nextX = this.geckoGridPos.x + vector.x;
+    let nextY = this.geckoGridPos.y + vector.y;
 
     // Check if next position is valid
     if (!this.isValidMove(nextX, nextY)) {
-      // Try to continue in current direction (will hit wall)
-      return;
-    }
+      // Wall hit! Try to slide along it by trying perpendicular directions
+      const perpendicularDirs = PERPENDICULAR_DIRECTIONS[direction];
 
-    // Add current position to trail before moving
-    this.addTrailSegment(this.geckoGridPos.x, this.geckoGridPos.y);
+      let foundValid = false;
+      for (const perpendicularDir of perpendicularDirs) {
+        const perpendicularVector = DIRECTION_VECTORS[perpendicularDir];
+        const perpendicularX = this.geckoGridPos.x + perpendicularVector.x;
+        const perpendicularY = this.geckoGridPos.y + perpendicularVector.y;
+
+        if (this.isValidMove(perpendicularX, perpendicularY)) {
+          // Found a valid perpendicular direction - slide along the wall
+          direction = perpendicularDir;
+          nextX = perpendicularX;
+          nextY = perpendicularY;
+          this.inputController.setDirection(perpendicularDir); // Update input controller
+          foundValid = true;
+          break;
+        }
+      }
+
+      if (!foundValid) {
+        // Completely blocked, can't move
+        return;
+      }
+    }
 
     // Set target
     this.targetGridPos = { x: nextX, y: nextY };
@@ -643,63 +789,6 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  /**
-   * Add a trail segment at the given position
-   */
-  private addTrailSegment(x: number, y: number): void {
-    const { TILE_SIZE, COLORS, TRAIL_OPACITY } = GAME_CONSTANTS;
-
-    const graphic = this.add.rectangle(
-      x * TILE_SIZE + TILE_SIZE / 2,
-      y * TILE_SIZE + TILE_SIZE / 2,
-      TILE_SIZE * 0.6,
-      TILE_SIZE * 0.6,
-      COLORS.TRAIL,
-      TRAIL_OPACITY
-    );
-
-    // Add to back of display list (behind gecko)
-    graphic.setDepth(-1);
-
-    const segment: TrailSegment = {
-      x,
-      y,
-      createdAt: this.time.now,
-      graphic,
-    };
-
-    this.trail.push(segment);
-  }
-
-  /**
-   * Update trail - fade out and remove old segments
-   */
-  private updateTrail(currentTime: number): void {
-    const { TRAIL_LIFETIME, TRAIL_OPACITY } = GAME_CONSTANTS;
-
-    const expiredSegments: TrailSegment[] = [];
-
-    for (const segment of this.trail) {
-      const age = currentTime - segment.createdAt;
-
-      if (age >= TRAIL_LIFETIME) {
-        expiredSegments.push(segment);
-      } else {
-        // Fade based on age
-        const fadeRatio = 1 - age / TRAIL_LIFETIME;
-        segment.graphic.setAlpha(TRAIL_OPACITY * fadeRatio);
-      }
-    }
-
-    // Remove expired segments
-    for (const segment of expiredSegments) {
-      segment.graphic.destroy();
-      const index = this.trail.indexOf(segment);
-      if (index > -1) {
-        this.trail.splice(index, 1);
-      }
-    }
-  }
 
   /**
    * Check tile effects at current position
@@ -708,6 +797,13 @@ export class GameScene extends Phaser.Scene {
     const tileType = this.grid[this.geckoGridPos.y][this.geckoGridPos.x];
     this.currentTileEffect = tileType;
 
+    // Check for death tiles
+    if (tileType === TileType.LAVA || tileType === TileType.CHEMICAL) {
+      this.showGameOver();
+      return;
+    }
+
+    // Speed pad effect
     if (tileType === TileType.SPEED_PAD && !this.speedBoostActive) {
       // Activate speed boost
       this.speedBoostActive = true;
@@ -719,28 +815,16 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Check for collisions (food, trail)
+   * Check for collisions (food)
    */
   private checkCollisions(): void {
-    // Check food collision
+    // Check food collision only if food is visible
     if (
+      this.foodVisible &&
       this.geckoGridPos.x === this.foodGridPos.x &&
       this.geckoGridPos.y === this.foodGridPos.y
     ) {
       this.collectFood();
-    }
-
-    // Check trail collision (skip very recent segments)
-    const graceTime = 200; // ms grace period to avoid instant death
-    for (const segment of this.trail) {
-      if (
-        segment.x === this.geckoGridPos.x &&
-        segment.y === this.geckoGridPos.y &&
-        this.time.now - segment.createdAt > graceTime
-      ) {
-        this.showGameOver();
-        return;
-      }
     }
   }
 
@@ -758,20 +842,63 @@ export class GameScene extends Phaser.Scene {
     );
     this.speedText.setText(`Speed: ${Math.round(this.currentSpeed)}`);
 
-    // Visual feedback
-    this.tweens.add({
-      targets: this.food,
-      scaleX: 1.5,
-      scaleY: 1.5,
-      duration: 100,
-      yoyo: true,
-      onComplete: () => {
-        this.spawnFood();
-      },
-    });
+    // Update leg animation speed
+    this.updateLegAnimationSpeed();
+
+    // Hide food immediately
+    this.food.setVisible(false);
+    this.foodVisible = false;
+
+    // Create eating animation - particles bursting outward
+    this.createEatingAnimation();
 
     // Camera shake for feedback
     this.cameras.main.shake(100, 0.005);
+
+    // Spawn new food after a short delay
+    this.time.delayedCall(200, () => {
+      this.spawnFood();
+    });
+  }
+
+  /**
+   * Create particle effect when eating food
+   */
+  private createEatingAnimation(): void {
+    const { TILE_SIZE, COLORS } = GAME_CONSTANTS;
+    const particles: Phaser.GameObjects.Arc[] = [];
+
+    // Create 8 particles bursting outward
+    const numParticles = 8;
+    for (let i = 0; i < numParticles; i++) {
+      const angle = (i / numParticles) * Math.PI * 2;
+      const particle = this.add.circle(
+        this.foodGridPos.x * TILE_SIZE + TILE_SIZE / 2,
+        this.foodGridPos.y * TILE_SIZE + TILE_SIZE / 2,
+        4,
+        COLORS.FOOD
+      );
+
+      particles.push(particle);
+
+      // Animate particle flying outward
+      this.tweens.add({
+        targets: particle,
+        x: particle.x + Math.cos(angle) * 30,
+        y: particle.y + Math.sin(angle) * 30,
+        alpha: 0,
+        duration: 300,
+        ease: "Quad.easeOut",
+      });
+    }
+
+    // Store effect for cleanup
+    this.particleEffects.push({
+      x: this.foodGridPos.x,
+      y: this.foodGridPos.y,
+      createdAt: this.time.now,
+      graphics: particles,
+    });
   }
 
   /**

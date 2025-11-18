@@ -24,6 +24,8 @@ export enum TileType {
   SPEED_PAD = 2,
   MUD = 3,
   ICE = 4,
+  LAVA = 5,
+  CHEMICAL = 6,
 }
 
 /** Position on the grid */
@@ -32,12 +34,12 @@ export interface GridPosition {
   y: number;
 }
 
-/** Trail segment that the gecko leaves behind */
-export interface TrailSegment {
+/** Animation frame for particle effects */
+export interface ParticleEffect {
   x: number;
   y: number;
   createdAt: number;
-  graphic: Phaser.GameObjects.Rectangle;
+  graphics: Phaser.GameObjects.Arc[];
 }
 
 /** Game constants - centralized configuration */
@@ -60,9 +62,9 @@ export const GAME_CONSTANTS = {
   SPEED_INCREMENT: 25, // speed increase per food eaten
   MAX_SPEED: 600,
 
-  // Trail properties
-  TRAIL_LIFETIME: 2000, // milliseconds
-  TRAIL_OPACITY: 0.4,
+  // Animation
+  LEG_ANIMATION_BASE_DURATION: 400, // milliseconds at base speed
+  LEG_ANIMATION_MIN_DURATION: 100, // milliseconds at max speed
 
   // Tile effects
   SPEED_PAD_BOOST: 200, // temporary speed boost
@@ -74,13 +76,14 @@ export const GAME_CONSTANTS = {
   COLORS: {
     GECKO_BODY: 0x4ade80, // green
     GECKO_ACCENT: 0x166534, // dark green
-    TRAIL: 0x86efac, // light green
     FOOD: 0xfbbf24, // amber
     WALL: 0x374151, // gray
     FLOOR: 0x1f2937, // dark gray
     SPEED_PAD: 0xef4444, // red
     MUD: 0x92400e, // brown
     ICE: 0x93c5fd, // light blue
+    LAVA: 0xff4500, // orange-red
+    CHEMICAL: 0x00ff00, // bright green
   },
 
   // UI
@@ -102,4 +105,12 @@ export const OPPOSITE_DIRECTIONS: Record<Direction, Direction> = {
   [Direction.DOWN]: Direction.UP,
   [Direction.LEFT]: Direction.RIGHT,
   [Direction.RIGHT]: Direction.LEFT,
+};
+
+/** Perpendicular directions for wall sliding */
+export const PERPENDICULAR_DIRECTIONS: Record<Direction, Direction[]> = {
+  [Direction.UP]: [Direction.LEFT, Direction.RIGHT],
+  [Direction.DOWN]: [Direction.LEFT, Direction.RIGHT],
+  [Direction.LEFT]: [Direction.UP, Direction.DOWN],
+  [Direction.RIGHT]: [Direction.UP, Direction.DOWN],
 };
