@@ -576,7 +576,6 @@ export class GameScene extends Phaser.Scene {
     // Reset gecko position
     this.geckoGridPos = { x: 5, y: 5 };
     this.updateGeckoPosition();
-    this.geckoContainer.setRotation(0);
     this.geckoContainer.setAlpha(1);
 
     // Spawn new food
@@ -691,8 +690,8 @@ export class GameScene extends Phaser.Scene {
     this.targetGridPos = { x: nextX, y: nextY };
     this.isMoving = true;
 
-    // Rotate gecko to face movement direction
-    this.updateGeckoRotation(direction);
+    // Don't rotate gecko - keep consistent appearance in all directions
+    // The movement itself shows the direction
   }
 
   /**
@@ -754,20 +753,12 @@ export class GameScene extends Phaser.Scene {
 
   /**
    * Update gecko rotation based on direction
+   * REMOVED: Rotation was causing the gecko to appear upside-down when going DOWN
+   * (tail-first instead of head-first). Now gecko maintains consistent orientation.
    */
   private updateGeckoRotation(direction: Direction): void {
-    const rotations: Record<Direction, number> = {
-      [Direction.UP]: 0,
-      [Direction.RIGHT]: Math.PI / 2,
-      [Direction.DOWN]: Math.PI,
-      [Direction.LEFT]: -Math.PI / 2,
-    };
-
-    this.tweens.add({
-      targets: this.geckoContainer,
-      rotation: rotations[direction],
-      duration: 100,
-    });
+    // No rotation - gecko always faces same direction
+    // Movement direction is clear from the motion itself
   }
 
 
