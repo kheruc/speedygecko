@@ -19,7 +19,7 @@ import {
  * - Gecko rendering with animated legs
  * - Food spawning and collection with eating animation
  * - Speed increase mechanics
- * - Special tiles (speed pads, mud, ice) and death tiles (lava, chemical)
+ * - Death tiles (lava and chemical puddles)
  * - Score tracking and game over flow
  */
 export class GameScene extends Phaser.Scene {
@@ -33,7 +33,7 @@ export class GameScene extends Phaser.Scene {
 
   // Gecko (player)
   private geckoContainer!: Phaser.GameObjects.Container;
-  private geckoLegs!: Phaser.GameObjects.Rectangle[];
+  private geckoLegs!: Phaser.GameObjects.Arc[];
   private legAnimationTween?: Phaser.Tweens.Tween;
   private geckoGridPos: GridPosition = { x: 5, y: 5 };
   private targetGridPos: GridPosition = { x: 5, y: 5 };
@@ -283,13 +283,12 @@ export class GameScene extends Phaser.Scene {
     const leftEye = this.add.circle(-4, -TILE_SIZE * 0.38, 3, COLORS.GECKO_ACCENT);
     const rightEye = this.add.circle(4, -TILE_SIZE * 0.38, 3, COLORS.GECKO_ACCENT);
 
-    // Legs (4 rectangles) - larger and more visible
-    const legWidth = 8;
-    const legHeight = 14;
-    const frontLeftLeg = this.add.rectangle(-TILE_SIZE * 0.3, -TILE_SIZE * 0.15, legWidth, legHeight, COLORS.GECKO_ACCENT);
-    const frontRightLeg = this.add.rectangle(TILE_SIZE * 0.3, -TILE_SIZE * 0.15, legWidth, legHeight, COLORS.GECKO_ACCENT);
-    const backLeftLeg = this.add.rectangle(-TILE_SIZE * 0.3, TILE_SIZE * 0.15, legWidth, legHeight, COLORS.GECKO_ACCENT);
-    const backRightLeg = this.add.rectangle(TILE_SIZE * 0.3, TILE_SIZE * 0.15, legWidth, legHeight, COLORS.GECKO_ACCENT);
+    // Legs (4 circles) - circular shape looks identical from all angles
+    const legRadius = 5;
+    const frontLeftLeg = this.add.circle(-TILE_SIZE * 0.3, -TILE_SIZE * 0.15, legRadius, COLORS.GECKO_ACCENT);
+    const frontRightLeg = this.add.circle(TILE_SIZE * 0.3, -TILE_SIZE * 0.15, legRadius, COLORS.GECKO_ACCENT);
+    const backLeftLeg = this.add.circle(-TILE_SIZE * 0.3, TILE_SIZE * 0.15, legRadius, COLORS.GECKO_ACCENT);
+    const backRightLeg = this.add.circle(TILE_SIZE * 0.3, TILE_SIZE * 0.15, legRadius, COLORS.GECKO_ACCENT);
 
     // Store legs for animation
     this.geckoLegs = [frontLeftLeg, frontRightLeg, backLeftLeg, backRightLeg];
@@ -460,6 +459,7 @@ export class GameScene extends Phaser.Scene {
       stroke: "#000000",
       strokeThickness: 4,
     });
+    this.scoreText.setDepth(10); // Above all game elements
 
     this.speedText = this.add.text(UI_PADDING, UI_PADDING + 30, `Speed: ${this.currentSpeed}`, {
       fontSize: "18px",
@@ -468,6 +468,7 @@ export class GameScene extends Phaser.Scene {
       stroke: "#000000",
       strokeThickness: 3,
     });
+    this.speedText.setDepth(10); // Above all game elements
 
     // Instructions
     const instructions = this.add.text(
@@ -482,6 +483,7 @@ export class GameScene extends Phaser.Scene {
       }
     );
     instructions.setOrigin(1, 0);
+    instructions.setDepth(10); // Above all game elements
   }
 
   /**
@@ -492,6 +494,7 @@ export class GameScene extends Phaser.Scene {
 
     this.gameOverContainer = this.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2);
     this.gameOverContainer.setVisible(false);
+    this.gameOverContainer.setDepth(100); // Above everything
 
     // Dark overlay
     const overlay = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.7);
@@ -847,6 +850,7 @@ export class GameScene extends Phaser.Scene {
         4,
         COLORS.FOOD
       );
+      particle.setDepth(3); // Above gecko
 
       particles.push(particle);
 

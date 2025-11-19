@@ -31,28 +31,24 @@ export default function Home() {
         {/* Game Description */}
         <div className="text-gray-300 text-lg mb-8 space-y-4">
           <p>
-            A <span className="text-amber-400 font-semibold">Pacman × Snake</span> hybrid where
+            A <span className="text-amber-400 font-semibold">fast-paced arcade game</span> where
             every bite makes you faster!
           </p>
           <p className="text-gray-400">
-            Collect food to increase your score, but beware - your speed increases with each bite,
-            making control harder. Avoid your own trail or face instant death!
+            Collect food to increase your score and speed. Navigate around deadly hazards that
+            shift position after each meal. How long can you survive as you get faster and faster?
           </p>
         </div>
 
         {/* Features */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10 text-sm">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10 text-sm max-w-lg mx-auto">
           <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
-            <div className="text-red-400 font-semibold mb-2">Speed Pads</div>
-            <div className="text-gray-400">High risk, high reward boost tiles</div>
+            <div className="text-orange-400 font-semibold mb-2">🔥 Lava Pools</div>
+            <div className="text-gray-400">Molten hazards that spell instant doom</div>
           </div>
           <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
-            <div className="text-amber-600 font-semibold mb-2">Mud Tiles</div>
-            <div className="text-gray-400">Slow down to regain control</div>
-          </div>
-          <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
-            <div className="text-blue-300 font-semibold mb-2">Ice Tiles</div>
-            <div className="text-gray-400">Low friction zones</div>
+            <div className="text-green-400 font-semibold mb-2">☣️ Chemical Puddles</div>
+            <div className="text-gray-400">Toxic spills to avoid at all costs</div>
           </div>
         </div>
 
