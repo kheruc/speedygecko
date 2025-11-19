@@ -763,11 +763,26 @@ export class GameScene extends Phaser.Scene {
       [Direction.LEFT]: -Math.PI / 2,
     };
 
-    this.tweens.add({
-      targets: this.geckoContainer,
-      rotation: rotations[direction],
-      duration: 100,
-    });
+    const targetRotation = rotations[direction];
+
+    // Normalize current rotation to be between -PI and PI
+    let currentRotation = this.geckoContainer.rotation;
+    while (currentRotation > Math.PI) currentRotation -= Math.PI * 2;
+    while (currentRotation < -Math.PI) currentRotation += Math.PI * 2;
+
+    // Only tween if we're not already at the target rotation
+    const rotationDiff = Math.abs(targetRotation - currentRotation);
+    if (rotationDiff > 0.01) { // Small threshold to account for floating point errors
+      // Kill any existing rotation tweens to prevent conflicts
+      this.tweens.killTweensOf(this.geckoContainer);
+
+      this.tweens.add({
+        targets: this.geckoContainer,
+        rotation: targetRotation,
+        duration: 100,
+        ease: "Linear",
+      });
+    }
   }
 
 
