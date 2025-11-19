@@ -265,7 +265,7 @@ export class GameScene extends Phaser.Scene {
 
   /**
    * Create the gecko (player character)
-   * Drawn as a simple top-down gecko shape
+   * Designed with radial symmetry so it looks good when rotated in any direction
    */
   private createGecko(): void {
     const { TILE_SIZE, COLORS } = GAME_CONSTANTS;
@@ -273,37 +273,37 @@ export class GameScene extends Phaser.Scene {
     this.geckoContainer = this.add.container(0, 0);
     this.geckoContainer.setDepth(2); // Above food and tiles
 
-    // Body (oval)
-    const body = this.add.ellipse(0, 0, TILE_SIZE * 0.7, TILE_SIZE * 0.9, COLORS.GECKO_BODY);
+    // Main body (circle for perfect symmetry)
+    const body = this.add.circle(0, 0, TILE_SIZE * 0.4, COLORS.GECKO_BODY);
 
-    // Head (circle at top)
-    const head = this.add.circle(0, -TILE_SIZE * 0.35, TILE_SIZE * 0.25, COLORS.GECKO_BODY);
+    // Head/front indicator - ellipse pointing forward (up in default orientation)
+    const head = this.add.ellipse(0, -TILE_SIZE * 0.3, TILE_SIZE * 0.35, TILE_SIZE * 0.25, COLORS.GECKO_BODY);
 
-    // Eyes
-    const leftEye = this.add.circle(-4, -TILE_SIZE * 0.38, 3, COLORS.GECKO_ACCENT);
-    const rightEye = this.add.circle(4, -TILE_SIZE * 0.38, 3, COLORS.GECKO_ACCENT);
+    // Eyes on the head to show direction clearly
+    const leftEye = this.add.circle(-5, -TILE_SIZE * 0.32, 3, COLORS.GECKO_ACCENT);
+    const rightEye = this.add.circle(5, -TILE_SIZE * 0.32, 3, COLORS.GECKO_ACCENT);
 
-    // Legs (4 circles) - circular shape looks identical from all angles
+    // Legs - positioned symmetrically so they look good at any rotation
     const legRadius = 5;
-    const frontLeftLeg = this.add.circle(-TILE_SIZE * 0.3, -TILE_SIZE * 0.15, legRadius, COLORS.GECKO_ACCENT);
-    const frontRightLeg = this.add.circle(TILE_SIZE * 0.3, -TILE_SIZE * 0.15, legRadius, COLORS.GECKO_ACCENT);
-    const backLeftLeg = this.add.circle(-TILE_SIZE * 0.3, TILE_SIZE * 0.15, legRadius, COLORS.GECKO_ACCENT);
-    const backRightLeg = this.add.circle(TILE_SIZE * 0.3, TILE_SIZE * 0.15, legRadius, COLORS.GECKO_ACCENT);
+    const frontLeftLeg = this.add.circle(-TILE_SIZE * 0.35, -TILE_SIZE * 0.15, legRadius, COLORS.GECKO_ACCENT);
+    const frontRightLeg = this.add.circle(TILE_SIZE * 0.35, -TILE_SIZE * 0.15, legRadius, COLORS.GECKO_ACCENT);
+    const backLeftLeg = this.add.circle(-TILE_SIZE * 0.35, TILE_SIZE * 0.15, legRadius, COLORS.GECKO_ACCENT);
+    const backRightLeg = this.add.circle(TILE_SIZE * 0.35, TILE_SIZE * 0.15, legRadius, COLORS.GECKO_ACCENT);
 
     // Store legs for animation
     this.geckoLegs = [frontLeftLeg, frontRightLeg, backLeftLeg, backRightLeg];
 
-    // Tail
-    const tail = this.add.ellipse(0, TILE_SIZE * 0.45, TILE_SIZE * 0.2, TILE_SIZE * 0.4, COLORS.GECKO_BODY);
+    // Small tail indicator at the back
+    const tail = this.add.ellipse(0, TILE_SIZE * 0.35, TILE_SIZE * 0.2, TILE_SIZE * 0.15, COLORS.GECKO_BODY);
 
     this.geckoContainer.add([
       tail,
       backLeftLeg,
       backRightLeg,
       body,
+      head,
       frontLeftLeg,
       frontRightLeg,
-      head,
       leftEye,
       rightEye,
     ]);
@@ -576,6 +576,7 @@ export class GameScene extends Phaser.Scene {
     // Reset gecko position
     this.geckoGridPos = { x: 5, y: 5 };
     this.updateGeckoPosition();
+    this.geckoContainer.setRotation(0);
     this.geckoContainer.setAlpha(1);
 
     // Spawn new food
@@ -690,8 +691,8 @@ export class GameScene extends Phaser.Scene {
     this.targetGridPos = { x: nextX, y: nextY };
     this.isMoving = true;
 
-    // Don't rotate gecko - keep consistent appearance in all directions
-    // The movement itself shows the direction
+    // Rotate gecko to face movement direction
+    this.updateGeckoRotation(direction);
   }
 
   /**
@@ -753,12 +754,20 @@ export class GameScene extends Phaser.Scene {
 
   /**
    * Update gecko rotation based on direction
-   * REMOVED: Rotation was causing the gecko to appear upside-down when going DOWN
-   * (tail-first instead of head-first). Now gecko maintains consistent orientation.
    */
   private updateGeckoRotation(direction: Direction): void {
-    // No rotation - gecko always faces same direction
-    // Movement direction is clear from the motion itself
+    const rotations: Record<Direction, number> = {
+      [Direction.UP]: 0,
+      [Direction.RIGHT]: Math.PI / 2,
+      [Direction.DOWN]: Math.PI,
+      [Direction.LEFT]: -Math.PI / 2,
+    };
+
+    this.tweens.add({
+      targets: this.geckoContainer,
+      rotation: rotations[direction],
+      duration: 100,
+    });
   }
 
 
