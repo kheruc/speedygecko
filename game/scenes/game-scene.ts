@@ -151,6 +151,7 @@ export class GameScene extends Phaser.Scene {
 
   /**
    * Place random death tiles (lava and chemical puddles) on the grid
+   * Avoids placing tiles in gecko's immediate path to prevent instant deaths
    */
   private placeRandomDeathTiles(): void {
     const { GRID_WIDTH, GRID_HEIGHT, NUM_DEATH_TILES } = GAME_CONSTANTS;
@@ -164,6 +165,29 @@ export class GameScene extends Phaser.Scene {
 
     this.deathTilePositions = [];
 
+    // Get gecko's current direction and position
+    const direction = this.inputController.getCurrentDirection();
+    const directionVector = DIRECTION_VECTORS[direction];
+
+    // Calculate positions to avoid (tiles in gecko's path)
+    const avoidPositions: Set<string> = new Set();
+
+    // Avoid 3 tiles ahead in current direction
+    for (let i = 1; i <= 3; i++) {
+      const aheadX = this.geckoGridPos.x + directionVector.x * i;
+      const aheadY = this.geckoGridPos.y + directionVector.y * i;
+      if (this.isValidGridPosition(aheadX, aheadY)) {
+        avoidPositions.add(`${aheadX},${aheadY}`);
+      }
+    }
+
+    // Avoid 1 tile behind (in case of immediate direction reversal)
+    const behindX = this.geckoGridPos.x - directionVector.x;
+    const behindY = this.geckoGridPos.y - directionVector.y;
+    if (this.isValidGridPosition(behindX, behindY)) {
+      avoidPositions.add(`${behindX},${behindY}`);
+    }
+
     let placed = 0;
     let attempts = 0;
     const maxAttempts = 200;
@@ -172,12 +196,15 @@ export class GameScene extends Phaser.Scene {
       const x = Phaser.Math.Between(2, GRID_WIDTH - 3);
       const y = Phaser.Math.Between(2, GRID_HEIGHT - 3);
 
-      // Check if position is valid (empty, not too close to start position)
+      // Check if position is valid (empty, not too close to start position, not in path)
       const distanceFromStart = Math.abs(x - 5) + Math.abs(y - 5);
+      const posKey = `${x},${y}`;
+
       if (
         this.grid[y][x] === TileType.EMPTY &&
         distanceFromStart > 3 && // At least 3 tiles away from start
-        !(x === this.foodGridPos.x && y === this.foodGridPos.y) // Not on food
+        !(x === this.foodGridPos.x && y === this.foodGridPos.y) && // Not on food
+        !avoidPositions.has(posKey) // Not in gecko's immediate path
       ) {
         // Alternate between lava and chemical
         const tileType = placed % 2 === 0 ? TileType.LAVA : TileType.CHEMICAL;
@@ -256,13 +283,13 @@ export class GameScene extends Phaser.Scene {
     const leftEye = this.add.circle(-4, -TILE_SIZE * 0.38, 3, COLORS.GECKO_ACCENT);
     const rightEye = this.add.circle(4, -TILE_SIZE * 0.38, 3, COLORS.GECKO_ACCENT);
 
-    // Legs (4 small rectangles) - simplified without angles for better animation
-    const legWidth = 4;
-    const legHeight = 10;
-    const frontLeftLeg = this.add.rectangle(-TILE_SIZE * 0.25, -TILE_SIZE * 0.2, legWidth, legHeight, COLORS.GECKO_BODY);
-    const frontRightLeg = this.add.rectangle(TILE_SIZE * 0.25, -TILE_SIZE * 0.2, legWidth, legHeight, COLORS.GECKO_BODY);
-    const backLeftLeg = this.add.rectangle(-TILE_SIZE * 0.25, TILE_SIZE * 0.2, legWidth, legHeight, COLORS.GECKO_BODY);
-    const backRightLeg = this.add.rectangle(TILE_SIZE * 0.25, TILE_SIZE * 0.2, legWidth, legHeight, COLORS.GECKO_BODY);
+    // Legs (4 rectangles) - larger and more visible
+    const legWidth = 8;
+    const legHeight = 14;
+    const frontLeftLeg = this.add.rectangle(-TILE_SIZE * 0.3, -TILE_SIZE * 0.15, legWidth, legHeight, COLORS.GECKO_ACCENT);
+    const frontRightLeg = this.add.rectangle(TILE_SIZE * 0.3, -TILE_SIZE * 0.15, legWidth, legHeight, COLORS.GECKO_ACCENT);
+    const backLeftLeg = this.add.rectangle(-TILE_SIZE * 0.3, TILE_SIZE * 0.15, legWidth, legHeight, COLORS.GECKO_ACCENT);
+    const backRightLeg = this.add.rectangle(TILE_SIZE * 0.3, TILE_SIZE * 0.15, legWidth, legHeight, COLORS.GECKO_ACCENT);
 
     // Store legs for animation
     this.geckoLegs = [frontLeftLeg, frontRightLeg, backLeftLeg, backRightLeg];
@@ -288,7 +315,7 @@ export class GameScene extends Phaser.Scene {
 
   /**
    * Start continuous leg animation based on speed
-   * Uses simple scale animation for clean movement in all directions
+   * Simple alpha pulsing for visibility in all directions
    */
   private startLegAnimation(): void {
     const duration = this.calculateLegAnimationDuration();
@@ -296,12 +323,11 @@ export class GameScene extends Phaser.Scene {
     // Kill existing animations if any
     this.tweens.killTweensOf(this.geckoLegs);
 
-    // Animate legs with alternating pattern - diagonal pairs
+    // Animate legs with alternating alpha/opacity - diagonal pairs
     // Front-left and back-right pair
     this.tweens.add({
       targets: [this.geckoLegs[0], this.geckoLegs[3]],
-      scaleX: 1.3,
-      scaleY: 1.2,
+      alpha: 0.5,
       duration: duration / 2,
       yoyo: true,
       repeat: -1,
@@ -311,8 +337,7 @@ export class GameScene extends Phaser.Scene {
     // Front-right and back-left pair (offset for alternating effect)
     this.tweens.add({
       targets: [this.geckoLegs[1], this.geckoLegs[2]],
-      scaleX: 1.3,
-      scaleY: 1.2,
+      alpha: 0.5,
       duration: duration / 2,
       yoyo: true,
       repeat: -1,

@@ -50,57 +50,69 @@ export class BootScene extends Phaser.Scene {
 
   /**
    * Create procedurally generated tile textures
+   * No background - just the lava/chemical spots on transparent background
    */
   private createPlaceholderAssets(): void {
     const tileSize = 32;
 
-    // Create lava texture - bubbling orange-red effect
+    // Create lava texture - just bubbling lava spots (no background)
     const lavaGraphics = this.make.graphics({ x: 0, y: 0 });
 
-    // Base lava color
+    // Main lava pools (orange-red)
     lavaGraphics.fillStyle(0xff4500, 1);
-    lavaGraphics.fillRect(0, 0, tileSize, tileSize);
+    lavaGraphics.fillCircle(8, 8, 7);
+    lavaGraphics.fillCircle(22, 12, 6);
+    lavaGraphics.fillCircle(12, 22, 5);
+    lavaGraphics.fillCircle(24, 24, 4);
 
-    // Add darker lava spots for texture
-    lavaGraphics.fillStyle(0xcc3300, 0.6);
-    lavaGraphics.fillCircle(8, 8, 6);
-    lavaGraphics.fillCircle(20, 15, 5);
-    lavaGraphics.fillCircle(12, 24, 4);
-    lavaGraphics.fillCircle(26, 26, 5);
+    // Darker lava spots for depth
+    lavaGraphics.fillStyle(0xcc3300, 0.8);
+    lavaGraphics.fillCircle(8, 8, 4);
+    lavaGraphics.fillCircle(22, 12, 3);
+    lavaGraphics.fillCircle(12, 22, 3);
 
-    // Add bright highlights
-    lavaGraphics.fillStyle(0xff6600, 0.8);
-    lavaGraphics.fillCircle(16, 12, 3);
-    lavaGraphics.fillCircle(24, 8, 2);
-    lavaGraphics.fillCircle(6, 20, 3);
+    // Bright highlights for molten effect
+    lavaGraphics.fillStyle(0xff6600, 1);
+    lavaGraphics.fillCircle(10, 6, 2);
+    lavaGraphics.fillCircle(24, 10, 2);
+    lavaGraphics.fillCircle(14, 20, 2);
+    lavaGraphics.fillCircle(26, 23, 1);
+
+    // Extra bright spots
+    lavaGraphics.fillStyle(0xff9900, 1);
+    lavaGraphics.fillCircle(9, 7, 1);
+    lavaGraphics.fillCircle(23, 11, 1);
 
     lavaGraphics.generateTexture("lava-tile", tileSize, tileSize);
     lavaGraphics.destroy();
 
-    // Create chemical puddle texture - toxic green
+    // Create chemical puddle texture - toxic green puddles (no background)
     const chemicalGraphics = this.make.graphics({ x: 0, y: 0 });
 
-    // Base chemical color
+    // Main chemical puddles (bright green)
     chemicalGraphics.fillStyle(0x00ff00, 1);
-    chemicalGraphics.fillRect(0, 0, tileSize, tileSize);
+    chemicalGraphics.fillCircle(10, 10, 8);
+    chemicalGraphics.fillCircle(20, 16, 7);
+    chemicalGraphics.fillCircle(14, 24, 6);
 
-    // Add darker areas for depth
-    chemicalGraphics.fillStyle(0x00cc00, 0.5);
-    chemicalGraphics.fillCircle(10, 10, 7);
-    chemicalGraphics.fillCircle(22, 18, 6);
-    chemicalGraphics.fillCircle(16, 26, 5);
+    // Darker areas for depth
+    chemicalGraphics.fillStyle(0x00cc00, 0.7);
+    chemicalGraphics.fillCircle(10, 12, 4);
+    chemicalGraphics.fillCircle(20, 18, 3);
+    chemicalGraphics.fillCircle(14, 26, 3);
 
-    // Add bubbles/highlights
-    chemicalGraphics.fillStyle(0x66ff66, 0.7);
-    chemicalGraphics.fillCircle(8, 16, 3);
-    chemicalGraphics.fillCircle(20, 10, 2);
-    chemicalGraphics.fillCircle(14, 22, 2);
-    chemicalGraphics.fillCircle(26, 24, 3);
+    // Bubble highlights
+    chemicalGraphics.fillStyle(0x66ff66, 0.9);
+    chemicalGraphics.fillCircle(8, 8, 3);
+    chemicalGraphics.fillCircle(18, 14, 2);
+    chemicalGraphics.fillCircle(12, 22, 2);
+    chemicalGraphics.fillCircle(22, 20, 2);
 
-    // Add bright spots
-    chemicalGraphics.fillStyle(0xccffcc, 0.6);
-    chemicalGraphics.fillCircle(12, 8, 2);
-    chemicalGraphics.fillCircle(24, 14, 1);
+    // Bright toxic spots
+    chemicalGraphics.fillStyle(0xccffcc, 1);
+    chemicalGraphics.fillCircle(9, 9, 1);
+    chemicalGraphics.fillCircle(19, 15, 1);
+    chemicalGraphics.fillCircle(13, 23, 1);
 
     chemicalGraphics.generateTexture("chemical-tile", tileSize, tileSize);
     chemicalGraphics.destroy();
