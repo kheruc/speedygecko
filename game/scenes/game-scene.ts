@@ -65,12 +65,12 @@ export class GameScene extends Phaser.Scene {
 
   create(): void {
     this.resetGameState();
+    this.inputController = new InputController(this, Direction.RIGHT);
     this.createGrid();
     this.createGecko();
     this.createFood();
     this.createUI();
     this.createGameOverUI();
-    this.inputController = new InputController(this, Direction.RIGHT);
 
     // Set up restart key
     this.input.keyboard?.on("keydown-R", () => {
