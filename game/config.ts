@@ -24,8 +24,10 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
   },
   scene: [BootScene, GameScene],
   scale: {
-    mode: Phaser.Scale.NONE,
-    autoCenter: Phaser.Scale.NO_CENTER,
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+    width: GAME_CONSTANTS.GAME_WIDTH,
+    height: GAME_CONSTANTS.GAME_HEIGHT,
   },
   input: {
     keyboard: true,

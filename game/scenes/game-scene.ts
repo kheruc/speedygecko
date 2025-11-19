@@ -49,7 +49,7 @@ export class GameScene extends Phaser.Scene {
 
   // Grid/Map
   private grid: TileType[][] = [];
-  private tileGraphics: Phaser.GameObjects.Rectangle[][] = [];
+  private tileGraphics: (Phaser.GameObjects.Rectangle | Phaser.GameObjects.Image)[][] = [];
 
   // UI
   private scoreText!: Phaser.GameObjects.Text;
@@ -124,27 +124,26 @@ export class GameScene extends Phaser.Scene {
       this.tileGraphics[y] = [];
       for (let x = 0; x < GRID_WIDTH; x++) {
         const tileType = this.grid[y][x];
-        let color: number = COLORS.FLOOR;
+        const posX = x * TILE_SIZE + TILE_SIZE / 2;
+        const posY = y * TILE_SIZE + TILE_SIZE / 2;
 
-        switch (tileType) {
-          case TileType.WALL:
+        let tile: Phaser.GameObjects.Rectangle | Phaser.GameObjects.Image;
+
+        if (tileType === TileType.LAVA) {
+          // Use lava texture
+          tile = this.add.image(posX, posY, "lava-tile");
+        } else if (tileType === TileType.CHEMICAL) {
+          // Use chemical texture
+          tile = this.add.image(posX, posY, "chemical-tile");
+        } else {
+          // Use colored rectangles for floor and walls
+          let color: number = COLORS.FLOOR;
+          if (tileType === TileType.WALL) {
             color = COLORS.WALL;
-            break;
-          case TileType.LAVA:
-            color = COLORS.LAVA;
-            break;
-          case TileType.CHEMICAL:
-            color = COLORS.CHEMICAL;
-            break;
+          }
+          tile = this.add.rectangle(posX, posY, TILE_SIZE - 1, TILE_SIZE - 1, color);
         }
 
-        const tile = this.add.rectangle(
-          x * TILE_SIZE + TILE_SIZE / 2,
-          y * TILE_SIZE + TILE_SIZE / 2,
-          TILE_SIZE - 1,
-          TILE_SIZE - 1,
-          color
-        );
         this.tileGraphics[y][x] = tile;
       }
     }
@@ -192,28 +191,47 @@ export class GameScene extends Phaser.Scene {
 
   /**
    * Update the visual tiles to match the grid state
+   * Destroys and recreates tiles to switch between rectangles and images
    */
   private updateTileVisuals(): void {
-    const { COLORS } = GAME_CONSTANTS;
+    const { COLORS, TILE_SIZE } = GAME_CONSTANTS;
 
     for (let y = 0; y < this.grid.length; y++) {
       for (let x = 0; x < this.grid[y].length; x++) {
         const tileType = this.grid[y][x];
-        let color: number = COLORS.FLOOR;
+        const existingTile = this.tileGraphics[y][x];
+        const posX = x * TILE_SIZE + TILE_SIZE / 2;
+        const posY = y * TILE_SIZE + TILE_SIZE / 2;
 
-        switch (tileType) {
-          case TileType.WALL:
-            color = COLORS.WALL;
-            break;
-          case TileType.LAVA:
-            color = COLORS.LAVA;
-            break;
-          case TileType.CHEMICAL:
-            color = COLORS.CHEMICAL;
-            break;
+        // Check if we need to change the tile type
+        const needsImageTile = tileType === TileType.LAVA || tileType === TileType.CHEMICAL;
+        const isCurrentlyImage = existingTile instanceof Phaser.GameObjects.Image;
+
+        // If type mismatch, destroy and recreate
+        if (needsImageTile !== isCurrentlyImage) {
+          existingTile.destroy();
+
+          let newTile: Phaser.GameObjects.Rectangle | Phaser.GameObjects.Image;
+
+          if (tileType === TileType.LAVA) {
+            newTile = this.add.image(posX, posY, "lava-tile");
+          } else if (tileType === TileType.CHEMICAL) {
+            newTile = this.add.image(posX, posY, "chemical-tile");
+          } else {
+            const color = tileType === TileType.WALL ? COLORS.WALL : COLORS.FLOOR;
+            newTile = this.add.rectangle(posX, posY, TILE_SIZE - 1, TILE_SIZE - 1, color);
+          }
+
+          this.tileGraphics[y][x] = newTile;
+        } else if (!isCurrentlyImage) {
+          // Just update the color for rectangles
+          const color = tileType === TileType.WALL ? COLORS.WALL : COLORS.FLOOR;
+          (existingTile as Phaser.GameObjects.Rectangle).setFillStyle(color);
+        } else {
+          // Update the texture for images
+          const texture = tileType === TileType.LAVA ? "lava-tile" : "chemical-tile";
+          (existingTile as Phaser.GameObjects.Image).setTexture(texture);
         }
-
-        this.tileGraphics[y][x].setFillStyle(color);
       }
     }
   }
@@ -238,17 +256,13 @@ export class GameScene extends Phaser.Scene {
     const leftEye = this.add.circle(-4, -TILE_SIZE * 0.38, 3, COLORS.GECKO_ACCENT);
     const rightEye = this.add.circle(4, -TILE_SIZE * 0.38, 3, COLORS.GECKO_ACCENT);
 
-    // Legs (4 small rectangles) - store for animation
-    const legWidth = 6;
-    const legHeight = 12;
-    const frontLeftLeg = this.add.rectangle(-TILE_SIZE * 0.35, -TILE_SIZE * 0.15, legWidth, legHeight, COLORS.GECKO_BODY);
-    frontLeftLeg.setAngle(-30);
-    const frontRightLeg = this.add.rectangle(TILE_SIZE * 0.35, -TILE_SIZE * 0.15, legWidth, legHeight, COLORS.GECKO_BODY);
-    frontRightLeg.setAngle(30);
-    const backLeftLeg = this.add.rectangle(-TILE_SIZE * 0.35, TILE_SIZE * 0.15, legWidth, legHeight, COLORS.GECKO_BODY);
-    backLeftLeg.setAngle(30);
-    const backRightLeg = this.add.rectangle(TILE_SIZE * 0.35, TILE_SIZE * 0.15, legWidth, legHeight, COLORS.GECKO_BODY);
-    backRightLeg.setAngle(-30);
+    // Legs (4 small rectangles) - simplified without angles for better animation
+    const legWidth = 4;
+    const legHeight = 10;
+    const frontLeftLeg = this.add.rectangle(-TILE_SIZE * 0.25, -TILE_SIZE * 0.2, legWidth, legHeight, COLORS.GECKO_BODY);
+    const frontRightLeg = this.add.rectangle(TILE_SIZE * 0.25, -TILE_SIZE * 0.2, legWidth, legHeight, COLORS.GECKO_BODY);
+    const backLeftLeg = this.add.rectangle(-TILE_SIZE * 0.25, TILE_SIZE * 0.2, legWidth, legHeight, COLORS.GECKO_BODY);
+    const backRightLeg = this.add.rectangle(TILE_SIZE * 0.25, TILE_SIZE * 0.2, legWidth, legHeight, COLORS.GECKO_BODY);
 
     // Store legs for animation
     this.geckoLegs = [frontLeftLeg, frontRightLeg, backLeftLeg, backRightLeg];
@@ -274,7 +288,7 @@ export class GameScene extends Phaser.Scene {
 
   /**
    * Start continuous leg animation based on speed
-   * Uses scale animation to work correctly in all directions
+   * Uses simple scale animation for clean movement in all directions
    */
   private startLegAnimation(): void {
     const duration = this.calculateLegAnimationDuration();
@@ -282,26 +296,28 @@ export class GameScene extends Phaser.Scene {
     // Kill existing animations if any
     this.tweens.killTweensOf(this.geckoLegs);
 
-    // Animate legs with alternating pattern using scaleY (rotation-independent)
+    // Animate legs with alternating pattern - diagonal pairs
     // Front-left and back-right pair
     this.tweens.add({
       targets: [this.geckoLegs[0], this.geckoLegs[3]],
-      scaleY: 1.15,
+      scaleX: 1.3,
+      scaleY: 1.2,
       duration: duration / 2,
       yoyo: true,
       repeat: -1,
       ease: "Sine.easeInOut",
     });
 
-    // Front-right and back-left pair (offset timing)
+    // Front-right and back-left pair (offset for alternating effect)
     this.tweens.add({
       targets: [this.geckoLegs[1], this.geckoLegs[2]],
-      scaleY: 1.15,
+      scaleX: 1.3,
+      scaleY: 1.2,
       duration: duration / 2,
       yoyo: true,
       repeat: -1,
       ease: "Sine.easeInOut",
-      delay: duration / 4, // Offset by quarter cycle for alternating effect
+      delay: duration / 4,
     });
   }
 
